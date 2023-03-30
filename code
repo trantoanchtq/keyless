@@ -1,0 +1,69 @@
+#include <BLEDevice.h> 
+#include <BLEUtils.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
+
+#define relay 2 //Pin Relay 
+
+String knownBLEAddresses[] = {"c5:06:56:01:97:e3"}; // Địa chỉ BLE được cấp phép 
+int RSSI_THRESHOLD = -60; //Khoảng cách tối đa cho phép BLE
+bool device_found;
+int scanTime = 1; //Đơn vị: giây
+BLEScan* pBLEScan;
+
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+  void onResult (BLEAdvertisedDevice advertisedDevice) {
+    for (int i = 0; i < (sizeof (knownBLEAddresses) / sizeof (knownBLEAddresses [0])); i++)
+    {
+      if (strcmp(advertisedDevice.getAddress().toString().c_str(), knownBLEAddresses[i].c_str()) == 0)
+      {
+        device_found = true; 
+        break;
+      }
+      else
+        device_found = false;
+    }
+    Serial.printf("Advertised Device: %s\n", advertisedDevice.toString().c_str());
+  }
+};
+
+/*************Chạy Một Lần***********************/
+
+void setup() {
+  Serial.begin(9600);    //Kích hoạt UART trên ESP32
+  Serial.println("Scanning..."); //Hiển thị quét
+  pinMode (relay, OUTPUT);  //Relay như một Output
+  digitalWrite(relay, HIGH);
+
+  BLEDevice::init("ESP32");
+  pBLEScan = BLEDevice::getScan(); //tạo một lượt quét mới
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true); //Quét active sử dụng nhiều năng lượng hơn, nhưng thu được kết quả nhanh hơn
+  pBLEScan->setInterval (100);
+  pBLEScan->setInterval(100);
+  pBLEScan->setWindow(99); // không nhiều hơn giá trị setInterval
+}
+
+/**********Chạy Lặp Lại*****************/
+
+void loop() {
+  BLEScanResults foundDevices = pBLEScan->start(scanTime, false);
+
+  for (int i = 0; i < foundDevices.getCount(); i++)
+  {
+    BLEAdvertisedDevice device = foundDevices.getDevice(i);
+    int rssi = device.getRSSI();
+    Serial.print("RSSI: ");
+    Serial.println(rssi);
+    if (rssi > RSSI_THRESHOLD && device_found == true)
+    {
+      Serial.println("Pintu Terbuka");
+      digitalWrite(relay, LOW);
+      delay(5000);
+      Serial.println("Pintu Terkunci");
+      digitalWrite(relay, HIGH);
+    }
+  }
+  pBLEScan->clearResults(); // xóa kết quả từ bộ đệm BLEScan để giải phóng bộ nhớ
+}
+}
