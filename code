@@ -66,4 +66,3 @@ void loop() {
   }
   pBLEScan->clearResults(); // xóa kết quả từ bộ đệm BLEScan để giải phóng bộ nhớ
 }
-}
